@@ -8,18 +8,20 @@ const GotoXY = ({ character, comp_id }) => {
     goto_y: 0,
   });
 
-  // go to posiiton X and Y
+  // go to position X and Y
   const gotoXY = () => {
     const el = document.getElementById(`${character.active}-div`);
     el.style.position = "relative";
     el.style.left = state.goto_x + "px";
-    el.style.top = state.goto_y + "px";
+    // Negate the Y value to make positive Y go up
+    el.style.top = (-state.goto_y) + "px";
   };
+
   return (
     <Paper elevation={3}>
-      <div className="text-center rounded bg-pink-500  p-2 my-3">
+      <div className="text-center rounded bg-pink-500 p-2 my-3">
         <div className="grid grid-cols-2 my-2">
-          <div className="text-white"> X</div>
+          <div className="text-white">X</div>
           <input
             className="mx-2 p-1 py-0 text-center"
             type="number"
