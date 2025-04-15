@@ -1,3 +1,3 @@
 # MIT_SCRATCH
 
-View the site: [[https://mitscratches.netlify.app/](https://mitscratchs.netlify.app/)]
+View the site: [[https://mittscratches.netlify.app/]((https://mittscratches.netlify.app/))]
