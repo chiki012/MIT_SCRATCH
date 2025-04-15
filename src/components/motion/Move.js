@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { connect } from "react-redux";
 import Paper from "@material-ui/core/Paper";
 import { setCharacterDirection } from "../../redux/character/actions";
@@ -7,22 +7,31 @@ const Move = ({ character, comp_id, updateDirection }) => {
   const [steps, setSteps] = useState(0);
   const [direction, setDirection] = useState(1);
   const [isColliding, setIsColliding] = useState(false);
+  const lastCollisionTime = useRef(0);
 
   const checkCollision = useCallback((el1, el2) => {
+    if (!el1 || !el2) return false;
+    
     const rect1 = el1.getBoundingClientRect();
     const rect2 = el2.getBoundingClientRect();
     
+    // Small buffer for more reliable detection
+    const buffer = 2;
     return !(
-      rect1.right < rect2.left || 
-      rect1.left > rect2.right || 
-      rect1.bottom < rect2.top || 
-      rect1.top > rect2.bottom
+      rect1.right + buffer < rect2.left || 
+      rect1.left - buffer > rect2.right || 
+      rect1.bottom + buffer < rect2.top || 
+      rect1.top - buffer > rect2.bottom
     );
   }, []);
 
   const handleCollisions = useCallback((currentEl) => {
     const collisions = new Set(); // Track all collisions in this frame
     const directionSwaps = new Map(); // Track direction changes for each character
+
+    // Prevent rapid collision checks
+    const now = Date.now();
+    if (now - lastCollisionTime.current < 100) return;
 
     // First pass: detect all collisions
     character.characters.forEach((char) => {
@@ -37,6 +46,7 @@ const Move = ({ character, comp_id, updateDirection }) => {
     // If there are collisions, handle them all together
     if (collisions.size > 0 && !isColliding) {
       setIsColliding(true);
+      lastCollisionTime.current = now;
       
       const currentDirection = direction;
       directionSwaps.set(character.active, currentDirection);
@@ -92,31 +102,42 @@ const Move = ({ character, comp_id, updateDirection }) => {
     const el = document.getElementById(`${character.active}-div`);
     if (!el || isColliding) return;
 
+    // Ensure position is initialized
+    if (!el.style.position) {
+      el.style.position = "relative";
+      el.style.left = "0px";
+    }
+
     el.setAttribute('data-direction', direction.toString());
     const left = parseInt(el.style.left || '0', 10);
-    el.style.position = "relative";
     const newLeft = left + (steps * direction);
     el.style.left = `${newLeft}px`;
 
-    handleCollisions(el);
+    // Use requestAnimationFrame for smoother collision detection
+    requestAnimationFrame(() => {
+      handleCollisions(el);
+    });
   }, [character.active, direction, steps, handleCollisions, isColliding]);
 
   useEffect(() => {
-    let animationInterval;
-    const el = document.getElementById(`${character.active}-div`);
-    
-    if (el && typeof comp_id === 'string' && comp_id.includes('auto') && !isColliding) {
-      animationInterval = setInterval(() => {
-        handleClick();
-      }, 100);
-    }
-
-    return () => {
-      if (animationInterval) {
-        clearInterval(animationInterval);
+    // Initialize all characters with direction
+    character.characters.forEach((char) => {
+      const el = document.getElementById(`${char.id}-div`);
+      if (el && !el.hasAttribute('data-direction')) {
+        el.setAttribute('data-direction', '1');
+        el.style.position = 'relative';
+        el.style.left = '0px';
       }
-    };
-  }, [character.active, comp_id, handleClick, isColliding]);
+    });
+  }, [character.characters]);
+
+  useEffect(() => {
+    let interval;
+    if (comp_id?.includes('auto') && !isColliding) {
+      interval = setInterval(handleClick, 100);
+    }
+    return () => clearInterval(interval);
+  }, [comp_id, handleClick, isColliding]);
 
   const handleStepsChange = (e) => {
     const value = e.target.value;
@@ -124,7 +145,13 @@ const Move = ({ character, comp_id, updateDirection }) => {
   };
 
   const handleDirectionChange = (e) => {
-    setDirection(parseInt(e.target.value, 10));
+    const newDirection = parseInt(e.target.value, 10);
+    setDirection(newDirection);
+    
+    const el = document.getElementById(`${character.active}-div`);
+    if (el) {
+      el.setAttribute('data-direction', newDirection.toString());
+    }
   };
 
   return (
